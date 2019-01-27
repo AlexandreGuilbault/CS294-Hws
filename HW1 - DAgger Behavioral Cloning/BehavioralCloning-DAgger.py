@@ -15,7 +15,7 @@ from run_expert_function import run_expert, run_expert_on_obsv
 ######################
 # Settings
 
-envname = 'Reacher-v2'
+envname = 'Hopper-v2'
 expert_data_path = r'./expert_data/'
 
 # Behavioral model
@@ -26,7 +26,7 @@ lr = 0.001
 
 # Expert Policy
 num_rollouts = 20
-max_timesteps = 50
+max_timesteps = 1000
 render = False
 
 # DAgger
@@ -76,20 +76,20 @@ pickle_in = open(expert_data_path+envname+'.pkl', 'rb')
 expert_data = pickle.load(pickle_in)
 
 num_examples, size_observation = expert_data['observations'].shape
-num_examples, _, size_actions = expert_data['actions'].squeeze().shape
+num_examples, size_actions = expert_data['actions'].squeeze().shape
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 new_expert_data = {}
 
 X = torch.Tensor(expert_data['observations'])
-Y = torch.Tensor(expert_data['actions'])
+Y = torch.Tensor(expert_data['actions'].squeeze())
 
 models = []
 
 for dagger_i in range(n_dagger_iterations):
     
     print("\n*******************************")
-    print("* DAgger iteration {}".format(dagger_i))
+    print("* DAgger iteration {}/{}".format(dagger_i, n_dagger_iterations))
     print("*******************************\n")
     
     model = SimpleMLP(size_observation, size_actions, 0.5).to(device)

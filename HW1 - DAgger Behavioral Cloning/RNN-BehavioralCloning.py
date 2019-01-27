@@ -15,20 +15,21 @@ from run_expert_function import run_expert_with_rollouts
 ######################
 # Settings
 
-envname = 'Reacher-v2'
+envname = 'Ant-v2'
 expert_data_path = r'./expert_data/'
 
 # Behavioral model
 batch_size = 64
-n_tests = 42
-n_epochs = 20
+n_tests = 5
+n_epochs = 5
 lr = 0.001
-max_steps = 500
-seq_length = 3
+max_steps = 250
+seq_length = 2
+hidden_size = 8
 
 # Expert Policy
 num_rollouts = 20
-max_timesteps = 21
+max_timesteps = 1000
 render = False
 
 ######################
@@ -104,7 +105,7 @@ new_expert_data = {}
 X, Y = prepare_rolling_window_dataset(np.array(expert_data['observations']), np.array(expert_data['actions']).squeeze(), seq_length)
 
     
-model = SimpleRNN(input_size=size_observations, hidden_size=size_observations*10, output_size=size_actions, num_layers=2, dropout_probability=0.5).to(device)
+model = SimpleRNN(input_size=size_observations, hidden_size=hidden_size, output_size=size_actions, num_layers=2, dropout_probability=0.5).to(device)
     
 trainset = torch.utils.data.TensorDataset(X,Y)
 trainloader = utils.data.DataLoader(trainset, batch_size=batch_size, shuffle=True, num_workers=0)
@@ -153,9 +154,12 @@ for i in range(n_tests):
     steps = 0
     obs = env.reset()
 
+    observations = torch.zeros(seq_length, size_observations)
+    observations[-1] = torch.Tensor(obs)
+
     while True:
     
-        action = model(torch.Tensor(obs))
+        action = model(observations.reshape(1,seq_length,size_observations))
     
         obs, r, done, _ = env.step(action.detach().numpy())
         steps += 1
@@ -165,3 +169,7 @@ for i in range(n_tests):
         if steps % 100 == 0: 
             print("[{}/{}] steps".format(steps, max_steps))
         if steps >= max_steps: break
+    
+        for i in range(seq_length-1):
+            observations[i] = observations[i+1]
+        observations[-1] = torch.Tensor(obs)
